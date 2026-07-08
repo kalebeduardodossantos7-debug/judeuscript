@@ -4,7 +4,7 @@
     const app = {
         brand: "Judeu Scripts",
         poweredBy: "PowerBy Judeu IA",
-        version: "3.0.0"
+        version: "3.1.0"
     };
 
     function el(tag, options = {}) {
@@ -76,6 +76,8 @@
                     padding: 14px;
                     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
                     background: linear-gradient(135deg, rgba(79, 140, 255, 0.18), rgba(139, 92, 246, 0.16));
+                    cursor: move;
+                    user-select: none;
                 }
 
                 .judeu-logo {
@@ -119,6 +121,36 @@
                     gap: 12px;
                     padding: 14px;
                     overflow: auto;
+                }
+
+                .judeu-tabs {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                }
+
+                .judeu-tab {
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 10px;
+                    background: rgba(255, 255, 255, 0.07);
+                    color: #a7adbd;
+                    cursor: pointer;
+                    font-weight: 800;
+                    padding: 9px 10px;
+                }
+
+                .judeu-tab.is-active {
+                    background: #4f8cff;
+                    color: #fff;
+                }
+
+                .judeu-page {
+                    display: none;
+                    gap: 12px;
+                }
+
+                .judeu-page.is-active {
+                    display: grid;
                 }
 
                 .judeu-textarea {
@@ -168,6 +200,23 @@
                     white-space: pre-wrap;
                 }
 
+                .judeu-answer {
+                    padding: 14px;
+                    border-radius: 14px;
+                    background: linear-gradient(135deg, rgba(79, 140, 255, 0.18), rgba(139, 92, 246, 0.14));
+                    border: 1px solid rgba(255, 255, 255, 0.14);
+                    font-size: 15px;
+                    line-height: 1.45;
+                    white-space: pre-wrap;
+                }
+
+                .judeu-answer strong {
+                    display: block;
+                    margin-bottom: 6px;
+                    color: #ffffff;
+                    font-size: 24px;
+                }
+
                 .judeu-note {
                     color: #a7adbd;
                     font-size: 11px;
@@ -203,6 +252,31 @@
         return normalizeText(main.innerText || document.body.innerText || "");
     }
 
+    function getUsefulDomText() {
+        const selectors = [
+            "button",
+            "[role='button']",
+            "label",
+            "input",
+            "textarea",
+            "[aria-label]",
+            "[data-testid]",
+            "[class]"
+        ];
+
+        return selectors
+            .flatMap(selector => [...document.querySelectorAll(selector)])
+            .slice(0, 220)
+            .map(node => normalizeText([
+                node.innerText,
+                node.textContent,
+                node.getAttribute("aria-label"),
+                node.getAttribute("value")
+            ].filter(Boolean).join(" ")))
+            .filter(Boolean)
+            .join(" | ");
+    }
+
     function extractProblemText() {
         const text = getVisibleLessonText();
         const startWords = ["Qual", "Quanto", "Calcule", "Resolva", "Escolha", "Determine", "Encontre"];
@@ -216,7 +290,7 @@
     function extractOptions(text) {
         const options = [];
         const compact = text.replace(/\s+/g, " ");
-        const optionRegex = /\b([A-D])\s+([^A-D]{1,120}?)(?=\s+[A-D]\s+|$)/g;
+        const optionRegex = /\b([A-D])\s+(.{1,140}?)(?=\s+[A-D]\s+|$)/g;
         let match;
 
         while ((match = optionRegex.exec(compact))) {
@@ -278,20 +352,13 @@
             return Math.abs(parsed.slope - slope) < 0.0001 && Math.abs(parsed.intercept - intercept) < 0.0001;
         });
 
-        const lines = [
-            "Analise da IA:",
-            `A tabela mostra os pares (${x1}, ${y1}) e (${x2}, ${y2}).`,
-            `A variacao foi ${y2} - ${y1} = ${y2 - y1}.`,
-            `Como ${x2} - ${x1} = ${x2 - x1}, a taxa por unidade e ${slope}.`,
-            `Usando y = ${slope}x + b e o par (${x1}, ${y1}):`,
-            `${y1} = ${slope} * ${x1} + b, entao b = ${intercept}.`,
-            `Expressao final: T = ${slope}m${intercept < 0 ? " - " + Math.abs(intercept) : intercept > 0 ? " + " + intercept : ""}.`
-        ];
+        const expression = `T = ${slope}m${intercept < 0 ? " - " + Math.abs(intercept) : intercept > 0 ? " + " + intercept : ""}`;
 
-        if (matched) lines.push(`Resultado: alternativa ${matched.label}, ${matched.value}.`);
-        else lines.push("Resultado: encontrei a expressao, mas nao consegui casar com uma alternativa visivel.");
-
-        return lines.join("\n");
+        return {
+            answer: matched ? `R: ${matched.label}` : `R: ${expression}`,
+            explanation: `A variacao e ${y2 - y1}, entao a taxa e ${slope}. Substituindo (${x1}, ${y1}), sobra b = ${intercept}.`,
+            detail: matched ? `${matched.label}) ${matched.value}` : expression
+        };
     }
 
     function analyzeBasicArithmetic(text) {
@@ -309,32 +376,24 @@
         if (op === "/") result = b === 0 ? null : a / b;
         if (result === null || !Number.isFinite(result)) return null;
 
-        return [
-            "Analise da IA:",
-            `A conta identificada foi ${a} ${op} ${b}.`,
-            `Fazendo a operacao, o resultado e ${result}.`,
-            `Resultado: ${result}.`
-        ].join("\n");
+        return {
+            answer: `R: ${result}`,
+            explanation: `Conta direta: ${a} ${op} ${b} = ${result}.`,
+            detail: String(result)
+        };
     }
 
     function fallbackAnalysis(text) {
         const options = extractOptions(text);
         const optionText = options.length
-            ? `\n\nAlternativas detectadas:\n${options.map(option => `${option.label}) ${option.value}`).join("\n")}`
+            ? `\n${options.map(option => `${option.label}) ${option.value}`).join("\n")}`
             : "";
 
-        return [
-            "Analise da IA:",
-            "Eu li a questao, mas nao consegui resolver automaticamente com seguranca.",
-            "Como fazer:",
-            "1. Identifique o que a pergunta quer encontrar.",
-            "2. Separe os dados importantes do enunciado.",
-            "3. Teste as alternativas ou monte uma equacao.",
-            "4. Confira se o resultado atende todos os dados.",
-            "",
-            "Resultado: preciso que voce cole o enunciado completo ou selecione a parte da questao para eu analisar melhor.",
-            optionText
-        ].join("\n");
+        return {
+            answer: "R: ?",
+            explanation: "Nao consegui ter certeza so pelo texto capturado. Cole o enunciado completo para melhorar.",
+            detail: optionText ? `Alternativas detectadas:${optionText}` : "Nenhuma alternativa clara detectada."
+        };
     }
 
     function analyze(text) {
@@ -362,13 +421,28 @@
                     <button class="judeu-close" type="button" aria-label="Fechar">x</button>
                 </div>
                 <div class="judeu-body">
-                    <textarea class="judeu-textarea" id="judeu-question" placeholder="Clique em Capturar questão ou cole o enunciado aqui."></textarea>
-                    <div class="judeu-row">
-                        <button class="judeu-button" id="judeu-capture" type="button">Capturar questão</button>
-                        <button class="judeu-button secondary" id="judeu-analyze" type="button">Analisar</button>
+                    <div class="judeu-tabs">
+                        <button class="judeu-tab is-active" id="judeu-tab-khan" type="button">Khan</button>
+                        <button class="judeu-tab" id="judeu-tab-ai" type="button">Painel IA</button>
                     </div>
-                    <div class="judeu-result" id="judeu-result">Abra uma lição, capture a questão e clique em Analisar.</div>
-                    <div class="judeu-note">Este modo explica o raciocinio e mostra o resultado para estudo. Ele nao clica nem preenche respostas automaticamente.</div>
+
+                    <div class="judeu-page is-active" id="judeu-page-khan">
+                        <textarea class="judeu-textarea" id="judeu-question" placeholder="Clique em Ler tela ou cole o enunciado aqui."></textarea>
+                        <div class="judeu-row">
+                            <button class="judeu-button" id="judeu-capture" type="button">Ler tela</button>
+                            <button class="judeu-button secondary" id="judeu-analyze" type="button">Enviar para IA</button>
+                        </div>
+                    </div>
+
+                    <div class="judeu-page" id="judeu-page-ai">
+                        <div class="judeu-answer" id="judeu-answer"><strong>R: ?</strong>A resposta aparece aqui.</div>
+                        <div class="judeu-result" id="judeu-result">Aguardando leitura da tela.</div>
+                    </div>
+
+                    <div class="judeu-row">
+                        <button class="judeu-button secondary" id="judeu-copy" type="button">Copiar resposta</button>
+                    </div>
+                    <div class="judeu-note">Le a tela e o DOM visivel, resume curto e mostra a resposta sugerida. Nao clica nem preenche sozinho.</div>
                 </div>
             `
         });
@@ -377,21 +451,92 @@
 
         const question = panel.querySelector("#judeu-question");
         const result = panel.querySelector("#judeu-result");
+        const answer = panel.querySelector("#judeu-answer");
         const close = panel.querySelector(".judeu-close");
+        const header = panel.querySelector(".judeu-header");
+        const tabKhan = panel.querySelector("#judeu-tab-khan");
+        const tabAi = panel.querySelector("#judeu-tab-ai");
+        const pageKhan = panel.querySelector("#judeu-page-khan");
+        const pageAi = panel.querySelector("#judeu-page-ai");
 
         launcher.addEventListener("click", () => panel.classList.toggle("is-open"));
         close.addEventListener("click", () => panel.classList.remove("is-open"));
 
+        function setPage(page) {
+            const ai = page === "ai";
+            tabKhan.classList.toggle("is-active", !ai);
+            tabAi.classList.toggle("is-active", ai);
+            pageKhan.classList.toggle("is-active", !ai);
+            pageAi.classList.toggle("is-active", ai);
+        }
+
+        function setAnalysis(analysis) {
+            answer.innerHTML = `<strong>${analysis.answer}</strong>${analysis.explanation}`;
+            result.textContent = analysis.detail;
+            setPage("ai");
+        }
+
+        function readScreen() {
+            const visible = extractProblemText();
+            const dom = getUsefulDomText();
+            return normalizeText(`${visible}\n\nCODIGOS/DOM VISIVEIS:\n${dom}`);
+        }
+
+        function makeDraggable() {
+            let dragging = false;
+            let startX = 0;
+            let startY = 0;
+            let startLeft = 0;
+            let startTop = 0;
+
+            header.addEventListener("pointerdown", (event) => {
+                if (event.target.closest("button")) return;
+                dragging = true;
+                const rect = panel.getBoundingClientRect();
+                startX = event.clientX;
+                startY = event.clientY;
+                startLeft = rect.left;
+                startTop = rect.top;
+                panel.style.left = `${startLeft}px`;
+                panel.style.top = `${startTop}px`;
+                panel.style.right = "auto";
+                panel.style.bottom = "auto";
+                header.setPointerCapture(event.pointerId);
+            });
+
+            header.addEventListener("pointermove", (event) => {
+                if (!dragging) return;
+                const left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, startLeft + event.clientX - startX));
+                const top = Math.max(8, Math.min(window.innerHeight - panel.offsetHeight - 8, startTop + event.clientY - startY));
+                panel.style.left = `${left}px`;
+                panel.style.top = `${top}px`;
+            });
+
+            header.addEventListener("pointerup", () => {
+                dragging = false;
+            });
+        }
+
+        tabKhan.addEventListener("click", () => setPage("khan"));
+        tabAi.addEventListener("click", () => setPage("ai"));
+
         panel.querySelector("#judeu-capture").addEventListener("click", () => {
-            question.value = extractProblemText();
-            result.textContent = "Questao capturada. Clique em Analisar.";
+            question.value = readScreen();
         });
 
         panel.querySelector("#judeu-analyze").addEventListener("click", () => {
-            const text = question.value.trim() || extractProblemText();
+            const text = question.value.trim() || readScreen();
             question.value = text;
-            result.textContent = analyze(text);
+            setAnalysis(analyze(text));
         });
+
+        panel.querySelector("#judeu-copy").addEventListener("click", async () => {
+            const text = answer.innerText || "";
+            if (!text.trim()) return;
+            await navigator.clipboard?.writeText(text);
+        });
+
+        makeDraggable();
     }
 
     function boot() {
