@@ -2,29 +2,19 @@
     "use strict";
 
     const app = {
-        version: "1.0.0",
         brand: "Judeu Scripts",
         poweredBy: "PowerBy Judeu IA",
-        storageKey: "judeuScriptsState"
+        version: "2.0.0"
     };
 
-    const state = loadState();
-    let timerInterval = null;
-    let timerSeconds = state.timerSeconds || 25 * 60;
-    let timerRunning = false;
+    const config = {
+        scanEveryMs: 700,
+        clickDelayMs: 120,
+        toastMs: 2200
+    };
 
-    function loadState() {
-        try {
-            return JSON.parse(localStorage.getItem(app.storageKey)) || {};
-        } catch {
-            return {};
-        }
-    }
-
-    function saveState(nextState = {}) {
-        Object.assign(state, nextState);
-        localStorage.setItem(app.storageKey, JSON.stringify(state));
-    }
+    let scanTimer = null;
+    let lastSummary = "";
 
     function createElement(tag, options = {}) {
         const element = document.createElement(tag);
@@ -44,339 +34,51 @@
     function injectStyles() {
         if (document.getElementById("judeu-scripts-styles")) return;
 
-        const style = createElement("style", {
+        document.head.appendChild(createElement("style", {
             attrs: { id: "judeu-scripts-styles" },
             html: `
-                :root {
-                    --js-bg: #08090f;
-                    --js-panel: #111421;
-                    --js-panel-2: #171b2b;
-                    --js-text: #f7f7fb;
-                    --js-muted: #a7adbd;
-                    --js-border: rgba(255, 255, 255, 0.12);
-                    --js-primary: #4f8cff;
-                    --js-primary-2: #8b5cf6;
-                    --js-good: #30d158;
-                    --js-danger: #ff453a;
-                    --js-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
-                }
-
-                #judeu-splash,
-                #judeu-panel,
-                #judeu-launcher,
-                .judeu-toast {
-                    box-sizing: border-box;
-                    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                }
-
-                #judeu-splash {
-                    position: fixed;
-                    inset: 0;
-                    z-index: 2147483647;
-                    display: grid;
-                    place-items: center;
-                    background: radial-gradient(circle at top, rgba(79, 140, 255, 0.28), transparent 34%), var(--js-bg);
-                    color: var(--js-text);
-                    opacity: 0;
-                    transition: opacity 260ms ease;
-                }
-
-                #judeu-splash.is-visible {
-                    opacity: 1;
-                }
-
-                .judeu-splash-card {
-                    width: min(420px, calc(100vw - 32px));
-                    padding: 28px;
-                    border: 1px solid var(--js-border);
-                    border-radius: 18px;
-                    background: rgba(17, 20, 33, 0.88);
-                    box-shadow: var(--js-shadow);
-                    text-align: center;
-                    backdrop-filter: blur(14px);
-                }
-
-                .judeu-logo {
-                    display: inline-grid;
-                    place-items: center;
-                    width: 58px;
-                    height: 58px;
-                    margin-bottom: 14px;
-                    border-radius: 16px;
-                    background: linear-gradient(135deg, var(--js-primary), var(--js-primary-2));
-                    color: white;
-                    font-size: 26px;
-                    font-weight: 900;
-                }
-
-                .judeu-title {
-                    margin: 0;
-                    font-size: 28px;
-                    line-height: 1.1;
-                    letter-spacing: 0;
-                }
-
-                .judeu-subtitle {
-                    margin: 8px 0 0;
-                    color: var(--js-muted);
-                    font-size: 14px;
-                }
-
-                #judeu-launcher {
-                    position: fixed;
-                    right: 18px;
-                    bottom: 18px;
-                    z-index: 2147483645;
-                    width: 54px;
-                    height: 54px;
-                    border: 0;
-                    border-radius: 16px;
-                    background: linear-gradient(135deg, var(--js-primary), var(--js-primary-2));
-                    color: white;
-                    box-shadow: var(--js-shadow);
-                    cursor: pointer;
-                    font-size: 22px;
-                    font-weight: 900;
-                }
-
-                #judeu-panel {
-                    position: fixed;
-                    right: 18px;
-                    bottom: 84px;
-                    z-index: 2147483646;
-                    width: min(390px, calc(100vw - 24px));
-                    max-height: min(720px, calc(100vh - 108px));
-                    display: none;
-                    overflow: hidden;
-                    border: 1px solid var(--js-border);
-                    border-radius: 18px;
-                    background: var(--js-panel);
-                    color: var(--js-text);
-                    box-shadow: var(--js-shadow);
-                }
-
-                #judeu-panel.is-open {
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                .judeu-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 16px;
-                    border-bottom: 1px solid var(--js-border);
-                    background: linear-gradient(135deg, rgba(79, 140, 255, 0.18), rgba(139, 92, 246, 0.16));
-                }
-
-                .judeu-header .judeu-logo {
-                    width: 42px;
-                    height: 42px;
-                    margin: 0;
-                    border-radius: 12px;
-                    font-size: 19px;
-                }
-
-                .judeu-header h2 {
-                    margin: 0;
-                    font-size: 18px;
-                    line-height: 1.2;
-                }
-
-                .judeu-header p {
-                    margin: 2px 0 0;
-                    color: var(--js-muted);
-                    font-size: 12px;
-                }
-
-                .judeu-close {
-                    margin-left: auto;
-                    width: 34px;
-                    height: 34px;
-                    border: 1px solid var(--js-border);
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.06);
-                    color: var(--js-text);
-                    cursor: pointer;
-                    font-size: 18px;
-                }
-
-                .judeu-body {
-                    display: grid;
-                    gap: 12px;
-                    padding: 14px;
-                    overflow: auto;
-                }
-
-                .judeu-section {
-                    padding: 12px;
-                    border: 1px solid var(--js-border);
-                    border-radius: 12px;
-                    background: var(--js-panel-2);
-                }
-
-                .judeu-section h3 {
-                    margin: 0 0 10px;
-                    font-size: 13px;
-                    color: var(--js-muted);
-                    text-transform: uppercase;
-                    letter-spacing: 0.08em;
-                }
-
-                .judeu-row {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
-
-                .judeu-input,
-                .judeu-textarea {
-                    width: 100%;
-                    border: 1px solid var(--js-border);
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.06);
-                    color: var(--js-text);
-                    outline: 0;
-                    padding: 10px 11px;
-                    font: inherit;
-                }
-
-                .judeu-textarea {
-                    min-height: 92px;
-                    resize: vertical;
-                }
-
-                .judeu-button {
-                    border: 0;
-                    border-radius: 10px;
-                    background: var(--js-primary);
-                    color: white;
-                    cursor: pointer;
-                    font-weight: 800;
-                    padding: 10px 12px;
-                    white-space: nowrap;
-                }
-
-                .judeu-button.secondary {
-                    border: 1px solid var(--js-border);
-                    background: rgba(255, 255, 255, 0.07);
-                }
-
-                .judeu-button.danger {
-                    background: var(--js-danger);
-                }
-
-                .judeu-task-list {
-                    display: grid;
-                    gap: 8px;
-                    margin-top: 10px;
-                }
-
-                .judeu-task {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    min-width: 0;
-                    padding: 9px;
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.05);
-                }
-
-                .judeu-task span {
-                    flex: 1;
-                    min-width: 0;
-                    overflow-wrap: anywhere;
-                }
-
-                .judeu-task.is-done span {
-                    color: var(--js-muted);
-                    text-decoration: line-through;
-                }
-
-                .judeu-task button {
-                    width: 28px;
-                    height: 28px;
-                    border: 0;
-                    border-radius: 8px;
-                    background: rgba(255, 255, 255, 0.08);
-                    color: var(--js-text);
-                    cursor: pointer;
-                }
-
-                .judeu-module-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 8px;
-                }
-
-                .judeu-module-status {
-                    min-height: 38px;
-                    margin-top: 10px;
-                    padding: 10px;
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.05);
-                    color: var(--js-muted);
-                    font-size: 12px;
-                    line-height: 1.35;
-                }
-
-                .judeu-timer {
-                    font-size: 38px;
-                    font-weight: 900;
-                    text-align: center;
-                    font-variant-numeric: tabular-nums;
-                }
-
-                .judeu-footer {
-                    padding: 10px 14px 14px;
-                    color: var(--js-muted);
-                    font-size: 11px;
-                    text-align: center;
-                }
-
                 .judeu-toast {
                     position: fixed;
-                    left: 50%;
-                    bottom: 24px;
+                    right: 16px;
+                    bottom: 16px;
                     z-index: 2147483647;
-                    transform: translateX(-50%) translateY(18px);
-                    opacity: 0;
-                    max-width: min(420px, calc(100vw - 32px));
-                    padding: 11px 14px;
-                    border: 1px solid var(--js-border);
+                    max-width: min(360px, calc(100vw - 32px));
+                    padding: 12px 14px;
+                    border: 1px solid rgba(255, 255, 255, 0.16);
                     border-radius: 12px;
-                    background: #111421;
-                    color: var(--js-text);
-                    box-shadow: var(--js-shadow);
+                    background: #101423;
+                    color: #f7f7fb;
+                    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.38);
+                    font: 600 13px/1.35 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                    opacity: 0;
+                    transform: translateY(12px);
                     transition: opacity 180ms ease, transform 180ms ease;
                 }
 
                 .judeu-toast.is-visible {
                     opacity: 1;
-                    transform: translateX(-50%) translateY(0);
+                    transform: translateY(0);
                 }
 
-                @media (max-width: 520px) {
-                    #judeu-panel {
-                        right: 12px;
-                        bottom: 78px;
-                    }
+                .judeu-toast strong {
+                    display: block;
+                    margin-bottom: 2px;
+                    color: #ffffff;
+                    font-size: 14px;
+                }
 
-                    #judeu-launcher {
-                        right: 12px;
-                        bottom: 12px;
-                    }
+                [data-judeu-highlight="true"] {
+                    outline: 2px solid #4f8cff !important;
+                    outline-offset: 2px !important;
                 }
             `
-        });
-
-        document.head.appendChild(style);
+        }));
     }
 
     function showToast(message) {
         const toast = createElement("div", {
             className: "judeu-toast",
-            text: message
+            html: `<strong>${app.brand}</strong>${message}<br>${app.poweredBy}`
         });
 
         document.body.appendChild(toast);
@@ -385,384 +87,142 @@
         window.setTimeout(() => {
             toast.classList.remove("is-visible");
             window.setTimeout(() => toast.remove(), 220);
-        }, 2600);
+        }, config.toastMs);
     }
 
-    function showSplash() {
-        const splash = createElement("div", {
-            attrs: { id: "judeu-splash" },
-            html: `
-                <div class="judeu-splash-card">
-                    <div class="judeu-logo">JS</div>
-                    <h1 class="judeu-title">${app.brand}</h1>
-                    <p class="judeu-subtitle">${app.poweredBy} - carregando painel</p>
-                </div>
-            `
-        });
-
-        document.body.appendChild(splash);
-        requestAnimationFrame(() => splash.classList.add("is-visible"));
-
-        window.setTimeout(() => {
-            splash.classList.remove("is-visible");
-            window.setTimeout(() => splash.remove(), 300);
-        }, 1100);
+    function dispatchInputEvents(element) {
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
-    function formatTime(totalSeconds) {
-        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-        const seconds = (totalSeconds % 60).toString().padStart(2, "0");
-        return `${minutes}:${seconds}`;
+    function setInputValue(field, value) {
+        const prototype = field instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype;
+        const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+
+        if (valueSetter) {
+            valueSetter.call(field, value);
+        } else {
+            field.value = value;
+        }
+
+        dispatchInputEvents(field);
     }
 
-    function renderTasks(listElement) {
-        const tasks = state.tasks || [];
-        listElement.innerHTML = "";
+    function answerTextFields() {
+        const fields = document.querySelectorAll("input[data-judeu-answer], textarea[data-judeu-answer]");
+        let answered = 0;
 
-        if (!tasks.length) {
-            listElement.appendChild(createElement("div", {
-                className: "judeu-task",
-                text: "Nenhuma tarefa adicionada ainda."
-            }));
-            return;
-        }
+        fields.forEach((field) => {
+            const answer = field.getAttribute("data-judeu-answer") || "";
 
-        tasks.forEach((task, index) => {
-            const item = createElement("div", {
-                className: `judeu-task${task.done ? " is-done" : ""}`
-            });
-            const checkbox = createElement("input", {
-                attrs: { type: "checkbox", "aria-label": "Marcar tarefa" }
-            });
-            checkbox.checked = Boolean(task.done);
-            checkbox.addEventListener("change", () => {
-                tasks[index].done = checkbox.checked;
-                saveState({ tasks });
-                renderTasks(listElement);
-            });
+            if (field.value === answer && field.getAttribute("data-judeu-done") === "true") return;
 
-            const text = createElement("span", { text: task.text });
-            const remove = createElement("button", {
-                text: "x",
-                attrs: { type: "button", "aria-label": "Remover tarefa" }
-            });
-            remove.addEventListener("click", () => {
-                tasks.splice(index, 1);
-                saveState({ tasks });
-                renderTasks(listElement);
-                showToast("Tarefa removida.");
-            });
-
-            item.append(checkbox, text, remove);
-            listElement.appendChild(item);
+            setInputValue(field, answer);
+            field.setAttribute("data-judeu-done", "true");
+            field.setAttribute("data-judeu-highlight", "true");
+            answered += 1;
         });
+
+        return answered;
     }
 
-    function buildPanel() {
-        if (document.getElementById("judeu-panel")) return;
+    function answerChoices() {
+        const choices = document.querySelectorAll(
+            "button[data-judeu-correct='true'], [role='button'][data-judeu-correct='true'], input[type='radio'][data-judeu-correct='true'], input[type='checkbox'][data-judeu-correct='true']"
+        );
+        let clicked = 0;
 
-        const launcher = createElement("button", {
-            attrs: { id: "judeu-launcher", type: "button", title: app.brand },
-            text: "JS"
+        choices.forEach((choice, index) => {
+            if (choice.getAttribute("data-judeu-done") === "true") return;
+
+            choice.setAttribute("data-judeu-done", "true");
+            choice.setAttribute("data-judeu-highlight", "true");
+
+            window.setTimeout(() => {
+                choice.click();
+                choice.dispatchEvent(new Event("change", { bubbles: true }));
+            }, index * config.clickDelayMs);
+
+            clicked += 1;
         });
 
-        const panel = createElement("aside", {
-            attrs: { id: "judeu-panel", "aria-label": `${app.brand} painel` },
-            html: `
-                <div class="judeu-header">
-                    <div class="judeu-logo">JS</div>
-                    <div>
-                        <h2>${app.brand}</h2>
-                        <p>${app.poweredBy} - v${app.version}</p>
-                    </div>
-                    <button class="judeu-close" type="button" aria-label="Fechar">x</button>
-                </div>
-                <div class="judeu-body">
-                    <section class="judeu-section">
-                        <h3>Perfil</h3>
-                        <input class="judeu-input" id="judeu-name" placeholder="Seu nome" value="${state.name || ""}">
-                    </section>
-
-                    <section class="judeu-section">
-                        <h3>Timer de foco</h3>
-                        <div class="judeu-timer" id="judeu-timer">${formatTime(timerSeconds)}</div>
-                        <div class="judeu-row">
-                            <button class="judeu-button" id="judeu-start" type="button">Iniciar</button>
-                            <button class="judeu-button secondary" id="judeu-reset" type="button">Resetar</button>
-                        </div>
-                    </section>
-
-                    <section class="judeu-section">
-                        <h3>Tarefas</h3>
-                        <div class="judeu-row">
-                            <input class="judeu-input" id="judeu-task-input" placeholder="Adicionar tarefa">
-                            <button class="judeu-button" id="judeu-add-task" type="button">Add</button>
-                        </div>
-                        <div class="judeu-task-list" id="judeu-task-list"></div>
-                    </section>
-
-                    <section class="judeu-section">
-                        <h3>Modulos do jogo</h3>
-                        <div class="judeu-module-grid">
-                            <button class="judeu-button secondary" id="judeu-answer-revealer" type="button">answerRevealer</button>
-                            <button class="judeu-button secondary" id="judeu-auto-answer" type="button">autoAnswer</button>
-                            <button class="judeu-button secondary" id="judeu-question-spoof" type="button">questionSpoof</button>
-                            <button class="judeu-button secondary" id="judeu-video-spoof" type="button">videoSpoof</button>
-                            <button class="judeu-button secondary" id="judeu-minute-farm" type="button">minuteFarm</button>
-                        </div>
-                        <div class="judeu-module-status" id="judeu-module-status">
-                            Pronto. Estes modulos funcionam nos elementos do seu jogo marcados com data-judeu-*.
-                        </div>
-                    </section>
-
-                    <section class="judeu-section">
-                        <h3>Anotações</h3>
-                        <textarea class="judeu-textarea" id="judeu-notes" placeholder="Escreva suas anotações aqui...">${state.notes || ""}</textarea>
-                    </section>
-
-                    <section class="judeu-section">
-                        <h3>Ações</h3>
-                        <div class="judeu-row">
-                            <button class="judeu-button secondary" id="judeu-save" type="button">Salvar</button>
-                            <button class="judeu-button danger" id="judeu-clear" type="button">Limpar</button>
-                        </div>
-                    </section>
-                </div>
-                <div class="judeu-footer">${app.brand} - ${app.poweredBy}</div>
-            `
-        });
-
-        document.body.append(launcher, panel);
-        bindPanelEvents(panel, launcher);
+        return clicked;
     }
 
-    function bindPanelEvents(panel, launcher) {
-        const close = panel.querySelector(".judeu-close");
-        const nameInput = panel.querySelector("#judeu-name");
-        const notesInput = panel.querySelector("#judeu-notes");
-        const taskInput = panel.querySelector("#judeu-task-input");
-        const addTask = panel.querySelector("#judeu-add-task");
-        const taskList = panel.querySelector("#judeu-task-list");
-        const save = panel.querySelector("#judeu-save");
-        const clear = panel.querySelector("#judeu-clear");
-        const timer = panel.querySelector("#judeu-timer");
-        const start = panel.querySelector("#judeu-start");
-        const reset = panel.querySelector("#judeu-reset");
-        const moduleStatus = panel.querySelector("#judeu-module-status");
-        const answerRevealerButton = panel.querySelector("#judeu-answer-revealer");
-        const autoAnswerButton = panel.querySelector("#judeu-auto-answer");
-        const questionSpoofButton = panel.querySelector("#judeu-question-spoof");
-        const videoSpoofButton = panel.querySelector("#judeu-video-spoof");
-        const minuteFarmButton = panel.querySelector("#judeu-minute-farm");
+    function revealLabels() {
+        const labels = document.querySelectorAll("[data-judeu-answer]:not(input):not(textarea)");
+        let revealed = 0;
 
-        const togglePanel = () => panel.classList.toggle("is-open");
-        launcher.addEventListener("click", togglePanel);
-        close.addEventListener("click", togglePanel);
+        labels.forEach((label) => {
+            if (label.getAttribute("data-judeu-done") === "true") return;
 
-        function persistForm() {
-            saveState({
-                name: nameInput.value.trim(),
-                notes: notesInput.value,
-                timerSeconds
-            });
-        }
-
-        function addTaskFromInput() {
-            const text = taskInput.value.trim();
-            if (!text) {
-                showToast("Digite uma tarefa primeiro.");
-                return;
-            }
-
-            const tasks = state.tasks || [];
-            tasks.push({ text, done: false });
-            taskInput.value = "";
-            saveState({ tasks });
-            renderTasks(taskList);
-            showToast("Tarefa adicionada.");
-        }
-
-        function updateTimer() {
-            timer.textContent = formatTime(timerSeconds);
-            saveState({ timerSeconds });
-        }
-
-        function setModuleStatus(message) {
-            moduleStatus.textContent = message;
-            showToast(message);
-        }
-
-        function answerRevealer() {
-            const answerElements = document.querySelectorAll("[data-judeu-answer]");
-
-            if (!answerElements.length) {
-                setModuleStatus("answerRevealer: nenhum elemento com data-judeu-answer foi encontrado.");
-                return;
-            }
-
-            answerElements.forEach((element) => {
-                const answer = element.getAttribute("data-judeu-answer") || "";
-                element.setAttribute("data-judeu-revealed", "true");
-                element.textContent = answer;
-            });
-
-            setModuleStatus(`answerRevealer: ${answerElements.length} resposta(s) exibida(s) no jogo.`);
-        }
-
-        function autoAnswer() {
-            const fields = document.querySelectorAll("input[data-judeu-answer], textarea[data-judeu-answer]");
-
-            if (!fields.length) {
-                setModuleStatus("autoAnswer: nenhum input/textarea com data-judeu-answer foi encontrado.");
-                return;
-            }
-
-            fields.forEach((field) => {
-                field.value = field.getAttribute("data-judeu-answer") || "";
-                field.dispatchEvent(new Event("input", { bubbles: true }));
-                field.dispatchEvent(new Event("change", { bubbles: true }));
-            });
-
-            setModuleStatus(`autoAnswer: ${fields.length} campo(s) preenchido(s) no seu jogo.`);
-        }
-
-        function questionSpoof() {
-            const counters = document.querySelectorAll("[data-judeu-question-count]");
-
-            if (!counters.length) {
-                setModuleStatus("questionSpoof: nenhum contador com data-judeu-question-count foi encontrado.");
-                return;
-            }
-
-            counters.forEach((counter) => {
-                const current = Number(counter.getAttribute("data-judeu-question-count")) || 0;
-                const next = current + 1;
-                counter.setAttribute("data-judeu-question-count", String(next));
-                counter.textContent = String(next);
-            });
-
-            setModuleStatus(`questionSpoof: ${counters.length} contador(es) atualizado(s).`);
-        }
-
-        function videoSpoof() {
-            const videos = document.querySelectorAll("video[data-judeu-video], [data-judeu-video-progress]");
-
-            if (!videos.length) {
-                setModuleStatus("videoSpoof: nenhum video/progresso com data-judeu-video foi encontrado.");
-                return;
-            }
-
-            videos.forEach((element) => {
-                if (element instanceof HTMLVideoElement && Number.isFinite(element.duration)) {
-                    element.currentTime = Math.max(0, element.duration - 0.2);
-                    element.dispatchEvent(new Event("timeupdate", { bubbles: true }));
-                    element.dispatchEvent(new Event("ended", { bubbles: true }));
-                    return;
-                }
-
-                element.setAttribute("data-judeu-video-progress", "100");
-                element.textContent = "100%";
-            });
-
-            setModuleStatus(`videoSpoof: ${videos.length} item(ns) de video completo(s).`);
-        }
-
-        function minuteFarm() {
-            const minuteElements = document.querySelectorAll("[data-judeu-minutes]");
-            const gainedMinutes = 5;
-
-            if (!minuteElements.length) {
-                const total = Number(state.demoMinutes || 0) + gainedMinutes;
-                saveState({ demoMinutes: total });
-                setModuleStatus(`minuteFarm: ${gainedMinutes} minutos adicionados ao contador local. Total: ${total}.`);
-                return;
-            }
-
-            minuteElements.forEach((element) => {
-                const current = Number(element.getAttribute("data-judeu-minutes")) || 0;
-                const next = current + gainedMinutes;
-                element.setAttribute("data-judeu-minutes", String(next));
-                element.textContent = String(next);
-            });
-
-            setModuleStatus(`minuteFarm: ${gainedMinutes} minutos adicionados em ${minuteElements.length} contador(es).`);
-        }
-
-        addTask.addEventListener("click", addTaskFromInput);
-        taskInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") addTaskFromInput();
+            label.textContent = label.getAttribute("data-judeu-answer") || "";
+            label.setAttribute("data-judeu-done", "true");
+            label.setAttribute("data-judeu-highlight", "true");
+            revealed += 1;
         });
 
-        answerRevealerButton.addEventListener("click", answerRevealer);
-        autoAnswerButton.addEventListener("click", autoAnswer);
-        questionSpoofButton.addEventListener("click", questionSpoof);
-        videoSpoofButton.addEventListener("click", videoSpoof);
-        minuteFarmButton.addEventListener("click", minuteFarm);
+        return revealed;
+    }
 
-        save.addEventListener("click", () => {
-            persistForm();
-            showToast("Tudo salvo.");
+    function submitLessonIfReady() {
+        const submit = document.querySelector("[data-judeu-submit='true']");
+
+        if (!submit || submit.getAttribute("data-judeu-done") === "true") return 0;
+
+        submit.setAttribute("data-judeu-done", "true");
+        window.setTimeout(() => submit.click(), config.clickDelayMs);
+        return 1;
+    }
+
+    function runAutoAnswer() {
+        const textFields = answerTextFields();
+        const choices = answerChoices();
+        const labels = revealLabels();
+        const submits = submitLessonIfReady();
+        const total = textFields + choices + labels + submits;
+
+        if (!total) return;
+
+        const summary = `${textFields} campo(s), ${choices} escolha(s), ${labels} texto(s), ${submits} envio(s).`;
+        if (summary !== lastSummary) {
+            lastSummary = summary;
+            showToast(`Auto resposta executada: ${summary}`);
+        }
+    }
+
+    function startObserver() {
+        const observer = new MutationObserver(runAutoAnswer);
+        observer.observe(document.documentElement, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["data-judeu-answer", "data-judeu-correct", "data-judeu-submit"]
         });
 
-        clear.addEventListener("click", () => {
-            localStorage.removeItem(app.storageKey);
-            Object.keys(state).forEach(key => delete state[key]);
-            timerSeconds = 25 * 60;
-            nameInput.value = "";
-            notesInput.value = "";
-            updateTimer();
-            renderTasks(taskList);
-            showToast("Dados limpos.");
-        });
-
-        start.addEventListener("click", () => {
-            timerRunning = !timerRunning;
-            start.textContent = timerRunning ? "Pausar" : "Iniciar";
-
-            if (!timerRunning) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-                return;
-            }
-
-            timerInterval = window.setInterval(() => {
-                if (timerSeconds <= 0) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                    timerRunning = false;
-                    timerSeconds = 25 * 60;
-                    start.textContent = "Iniciar";
-                    updateTimer();
-                    showToast("Tempo finalizado.");
-                    return;
-                }
-
-                timerSeconds -= 1;
-                updateTimer();
-            }, 1000);
-        });
-
-        reset.addEventListener("click", () => {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            timerRunning = false;
-            timerSeconds = 25 * 60;
-            start.textContent = "Iniciar";
-            updateTimer();
-            showToast("Timer resetado.");
-        });
-
-        nameInput.addEventListener("input", persistForm);
-        notesInput.addEventListener("input", persistForm);
-        renderTasks(taskList);
+        scanTimer = window.setInterval(runAutoAnswer, config.scanEveryMs);
+        runAutoAnswer();
     }
 
     function boot() {
         injectStyles();
-        showSplash();
-        buildPanel();
-        showToast(`${app.brand} carregado com sucesso.`);
+        showToast(`v${app.version} carregado. Auto resposta ativa.`);
+        startObserver();
     }
+
+    if (window.__judeuScriptsAutoAnswerLoaded) {
+        showToast("Auto resposta ja estava ativa.");
+        return;
+    }
+
+    window.__judeuScriptsAutoAnswerLoaded = true;
+    window.__judeuScriptsStop = () => {
+        if (scanTimer) window.clearInterval(scanTimer);
+        window.__judeuScriptsAutoAnswerLoaded = false;
+        showToast("Auto resposta pausada.");
+    };
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", boot, { once: true });
