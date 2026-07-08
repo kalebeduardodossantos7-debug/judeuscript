@@ -4,8 +4,12 @@
     const app = {
         brand: "Judeu Scripts",
         poweredBy: "PowerBy Judeu IA",
-        version: "3.2.0",
+        version: "3.3.0",
         storageKey: "judeuScriptsAccessDemo"
+    };
+
+    const config = {
+        aiEndpoint: window.JUDEU_IA_ENDPOINT || ""
     };
 
     const state = loadState();
@@ -208,9 +212,10 @@
 
             .judeu-answer strong {
                 display: block;
-                margin-bottom: 5px;
-                font-size: 30px;
+                margin-bottom: 8px;
+                font-size: 56px;
                 line-height: 1;
+                letter-spacing: 0;
             }
 
             .judeu-admin {
@@ -353,8 +358,36 @@
         };
     }
 
+    function analyzeFunctionGraph(text) {
+        const match = text.match(/f\s*\(\s*x\s*\)\s*=\s*([+-]?\d+(?:[,.]\d+)?)\s*x\s*([+-]\s*\d+(?:[,.]\d+)?)?/i);
+        if (!match) return null;
+
+        const slope = Number(match[1].replace(",", "."));
+        const intercept = Number((match[2] || "0").replace(/\s+/g, "").replace(",", "."));
+        if (!Number.isFinite(slope) || !Number.isFinite(intercept)) return null;
+
+        const direction = slope > 0 ? "crescente" : slope < 0 ? "decrescente" : "horizontal";
+        const xIntercept = slope === 0 ? null : -intercept / slope;
+        const detail = [
+            `Funcao: f(x) = ${slope}x${intercept < 0 ? " - " + Math.abs(intercept) : intercept > 0 ? " + " + intercept : ""}`,
+            `Reta ${direction}.`,
+            `Corta o eixo y em ${intercept}.`,
+            xIntercept === null ? "" : `Corta o eixo x em ${Number(xIntercept.toFixed(3))}.`,
+            "Compare com os graficos A/B/C/D."
+        ].filter(Boolean).join("\n");
+
+        return {
+            letter: "?",
+            brief: `Grafico: escolha a reta ${direction}, com y = ${intercept}.`,
+            detail
+        };
+    }
+
     function analyze(text) {
         const clean = normalizeText(text);
+        const graph = analyzeFunctionGraph(clean);
+        if (graph) return graph;
+
         const linear = analyzeLinear(clean);
         if (linear) return linear;
 
@@ -363,6 +396,41 @@
             brief: "Nao consegui detectar com seguranca. Cole o enunciado completo ou use o modo normal para conferir.",
             detail: "Sem alternativa A/B/C/D confiavel."
         };
+    }
+
+    async function analyzeWithExternalAi(text) {
+        if (!config.aiEndpoint) return null;
+
+        try {
+            const response = await fetch(config.aiEndpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    url: location.href,
+                    title: document.title,
+                    text,
+                    html: document.body.innerHTML.slice(0, 120000),
+                    instruction: "Responda apenas em JSON com letter A/B/C/D/? e brief curto. Nao clique nem preencha nada."
+                })
+            });
+
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            const data = await response.json();
+
+            return {
+                letter: /^[A-D?]$/.test(String(data.letter || "").trim().toUpperCase())
+                    ? String(data.letter).trim().toUpperCase()
+                    : "?",
+                brief: String(data.brief || "Resposta gerada pela IA.").slice(0, 180),
+                detail: String(data.detail || data.brief || "").slice(0, 1000)
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    async function analyzeScreen(text) {
+        return await analyzeWithExternalAi(text) || analyze(text);
     }
 
     function ensureAccessRequest() {
@@ -450,7 +518,7 @@
             flashMode.classList.toggle("is-active", mode === "flash");
         }
 
-        function runRead() {
+        async function runRead() {
             if (accessStatus() === "blocked") {
                 answerTitle.textContent = "R: X";
                 answerBrief.textContent = "Usuario bloqueado.";
@@ -458,7 +526,11 @@
             }
 
             const text = readScreen();
-            const result = analyze(text);
+            answerTitle.textContent = "R: ...";
+            answerBrief.textContent = config.aiEndpoint ? "IA lendo a tela..." : "Lendo texto da tela...";
+            screen.textContent = "Analisando...";
+
+            const result = await analyzeScreen(text);
             answerTitle.textContent = `R: ${result.letter}`;
             answerBrief.textContent = state.mode === "flash" ? "Resposta rapida." : result.brief;
             screen.textContent = state.mode === "flash" ? result.detail : `${result.brief}\n\n${result.detail}`;
@@ -576,3 +648,4 @@
         boot();
     }
 })();
+
