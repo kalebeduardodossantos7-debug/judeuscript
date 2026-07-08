@@ -4,8 +4,39 @@
     const app = {
         brand: "Judeu Scripts",
         poweredBy: "PowerBy Judeu IA",
-        version: "3.1.0"
+        version: "3.2.0",
+        storageKey: "judeuScriptsAccessDemo"
     };
+
+    const state = loadState();
+
+    function loadState() {
+        try {
+            return JSON.parse(localStorage.getItem(app.storageKey)) || {
+                currentUser: makeUser(),
+                approvedUsers: [],
+                blockedUsers: [],
+                requests: [],
+                mode: "normal",
+                paidPlanReady: false
+            };
+        } catch {
+            return { currentUser: makeUser(), approvedUsers: [], blockedUsers: [], requests: [], mode: "normal", paidPlanReady: false };
+        }
+    }
+
+    function saveState() {
+        localStorage.setItem(app.storageKey, JSON.stringify(state));
+    }
+
+    function makeUser() {
+        const id = "user-" + Math.random().toString(36).slice(2, 8);
+        return {
+            id,
+            name: "Visitante " + id.slice(-4),
+            createdAt: new Date().toISOString()
+        };
+    }
 
     function el(tag, options = {}) {
         const node = document.createElement(tag);
@@ -20,223 +51,197 @@
     function injectStyles() {
         if (document.getElementById("judeu-study-styles")) return;
 
-        const style = el("style", {
-            attrs: { id: "judeu-study-styles" }
-        });
-
+        const style = el("style", { attrs: { id: "judeu-study-styles" } });
         style.textContent = `
-                #judeu-launcher,
-                #judeu-panel,
-                #judeu-panel * {
-                    box-sizing: border-box;
-                    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-                }
+            #judeu-launcher,
+            #judeu-panel,
+            #judeu-panel * {
+                box-sizing: border-box;
+                font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
 
-                #judeu-launcher {
-                    position: fixed;
-                    right: 18px;
-                    bottom: 18px;
-                    z-index: 2147483646;
-                    width: 54px;
-                    height: 54px;
-                    border: 0;
-                    border-radius: 16px;
-                    background: linear-gradient(135deg, #4f8cff, #8b5cf6);
-                    color: #fff;
-                    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
-                    cursor: pointer;
-                    font-size: 22px;
-                    font-weight: 900;
-                }
+            #judeu-launcher {
+                position: fixed;
+                right: 18px;
+                bottom: 18px;
+                z-index: 2147483646;
+                width: 52px;
+                height: 52px;
+                border: 1px solid #ffffff;
+                border-radius: 12px;
+                background: #050505;
+                color: #ffffff;
+                box-shadow: 0 16px 42px rgba(0, 0, 0, 0.5);
+                cursor: pointer;
+                font-size: 20px;
+                font-weight: 900;
+            }
 
-                #judeu-panel {
-                    position: fixed;
-                    right: 18px;
-                    bottom: 84px;
-                    z-index: 2147483647;
-                    display: none;
-                    width: min(430px, calc(100vw - 24px));
-                    max-height: min(760px, calc(100vh - 104px));
-                    overflow: hidden;
-                    border: 1px solid rgba(255, 255, 255, 0.14);
-                    border-radius: 16px;
-                    background: #101423;
-                    color: #f7f7fb;
-                    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.45);
-                }
+            #judeu-panel {
+                position: fixed;
+                right: 18px;
+                bottom: 84px;
+                z-index: 2147483647;
+                display: none;
+                width: min(420px, calc(100vw - 24px));
+                max-height: min(720px, calc(100vh - 104px));
+                overflow: hidden;
+                border: 1px solid #ffffff;
+                border-radius: 10px;
+                background: #0a0a0a;
+                color: #ffffff;
+                box-shadow: 0 22px 70px rgba(0, 0, 0, 0.55);
+            }
 
-                #judeu-panel.is-open {
-                    display: flex;
-                    flex-direction: column;
-                }
+            #judeu-panel.is-open {
+                display: flex;
+                flex-direction: column;
+            }
 
-                .judeu-header {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 14px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-                    background: linear-gradient(135deg, rgba(79, 140, 255, 0.18), rgba(139, 92, 246, 0.16));
-                    cursor: move;
-                    user-select: none;
-                }
+            .judeu-header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px;
+                border-bottom: 1px solid #343434;
+                background: #111111;
+                cursor: move;
+                user-select: none;
+            }
 
-                .judeu-logo {
-                    display: grid;
-                    place-items: center;
-                    width: 42px;
-                    height: 42px;
-                    border-radius: 12px;
-                    background: linear-gradient(135deg, #4f8cff, #8b5cf6);
-                    color: #fff;
-                    font-size: 19px;
-                    font-weight: 900;
-                }
+            .judeu-logo {
+                display: grid;
+                place-items: center;
+                width: 38px;
+                height: 38px;
+                border: 1px solid #ffffff;
+                border-radius: 8px;
+                background: #000000;
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: 900;
+            }
 
-                .judeu-header h2 {
-                    margin: 0;
-                    font-size: 17px;
-                    line-height: 1.2;
-                }
+            .judeu-header h2 {
+                margin: 0;
+                font-size: 16px;
+                line-height: 1.2;
+            }
 
-                .judeu-header p {
-                    margin: 2px 0 0;
-                    color: #a7adbd;
-                    font-size: 12px;
-                }
+            .judeu-header p {
+                margin: 2px 0 0;
+                color: #bdbdbd;
+                font-size: 11px;
+            }
 
-                .judeu-close {
-                    margin-left: auto;
-                    width: 34px;
-                    height: 34px;
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.07);
-                    color: #fff;
-                    cursor: pointer;
-                    font-size: 18px;
-                }
+            .judeu-close {
+                margin-left: auto;
+                width: 32px;
+                height: 32px;
+                border: 1px solid #555555;
+                border-radius: 8px;
+                background: #191919;
+                color: #ffffff;
+                cursor: pointer;
+                font-size: 16px;
+            }
 
-                .judeu-body {
-                    display: grid;
-                    gap: 12px;
-                    padding: 14px;
-                    overflow: auto;
-                }
+            .judeu-body {
+                display: grid;
+                gap: 10px;
+                padding: 12px;
+                overflow: auto;
+            }
 
-                .judeu-tabs {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 8px;
-                }
+            .judeu-button,
+            .judeu-mode {
+                border: 1px solid #ffffff;
+                border-radius: 8px;
+                background: #ffffff;
+                color: #000000;
+                cursor: pointer;
+                font-weight: 900;
+                padding: 10px 12px;
+            }
 
-                .judeu-tab {
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 10px;
-                    background: rgba(255, 255, 255, 0.07);
-                    color: #a7adbd;
-                    cursor: pointer;
-                    font-weight: 800;
-                    padding: 9px 10px;
-                }
+            .judeu-button.secondary,
+            .judeu-mode {
+                border-color: #555555;
+                background: #171717;
+                color: #ffffff;
+            }
 
-                .judeu-tab.is-active {
-                    background: #4f8cff;
-                    color: #fff;
-                }
+            .judeu-mode.is-active {
+                border-color: #ffffff;
+                background: #ffffff;
+                color: #000000;
+            }
 
-                .judeu-page {
-                    display: none;
-                    gap: 12px;
-                }
+            .judeu-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
 
-                .judeu-page.is-active {
-                    display: grid;
-                }
+            .judeu-screen {
+                min-height: 84px;
+                padding: 12px;
+                border: 1px solid #343434;
+                border-radius: 8px;
+                background: #111111;
+                color: #dedede;
+                font-size: 12px;
+                line-height: 1.38;
+                white-space: pre-wrap;
+            }
 
-                .judeu-textarea {
-                    width: 100%;
-                    min-height: 150px;
-                    resize: vertical;
-                    border: 1px solid rgba(255, 255, 255, 0.14);
-                    border-radius: 12px;
-                    background: rgba(255, 255, 255, 0.06);
-                    color: #f7f7fb;
-                    outline: 0;
-                    padding: 11px;
-                    font: inherit;
-                    line-height: 1.35;
-                }
+            .judeu-answer {
+                padding: 14px;
+                border: 1px solid #ffffff;
+                border-radius: 8px;
+                background: #000000;
+                color: #ffffff;
+                font-size: 13px;
+                line-height: 1.4;
+                white-space: pre-wrap;
+            }
 
-                .judeu-row {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
+            .judeu-answer strong {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 30px;
+                line-height: 1;
+            }
 
-                .judeu-button {
-                    border: 0;
-                    border-radius: 10px;
-                    background: #4f8cff;
-                    color: white;
-                    cursor: pointer;
-                    font-weight: 800;
-                    padding: 10px 12px;
-                }
+            .judeu-admin {
+                display: none;
+                gap: 8px;
+                padding-top: 8px;
+                border-top: 1px solid #343434;
+            }
 
-                .judeu-button.secondary {
-                    border: 1px solid rgba(255, 255, 255, 0.14);
-                    background: rgba(255, 255, 255, 0.07);
-                }
+            .judeu-admin.is-open {
+                display: grid;
+            }
 
-                .judeu-result {
-                    min-height: 180px;
-                    padding: 12px;
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 12px;
-                    background: rgba(255, 255, 255, 0.05);
-                    color: #e8ebf5;
-                    font-size: 13px;
-                    line-height: 1.45;
-                    white-space: pre-wrap;
-                }
+            .judeu-user {
+                display: grid;
+                gap: 8px;
+                padding: 10px;
+                border: 1px solid #343434;
+                border-radius: 8px;
+                background: #111111;
+                color: #dedede;
+                font-size: 12px;
+            }
 
-                .judeu-answer {
-                    padding: 14px;
-                    border-radius: 14px;
-                    background: linear-gradient(135deg, rgba(79, 140, 255, 0.18), rgba(139, 92, 246, 0.14));
-                    border: 1px solid rgba(255, 255, 255, 0.14);
-                    font-size: 15px;
-                    line-height: 1.45;
-                    white-space: pre-wrap;
-                }
-
-                .judeu-answer strong {
-                    display: block;
-                    margin-bottom: 6px;
-                    color: #ffffff;
-                    font-size: 24px;
-                }
-
-                .judeu-note {
-                    color: #a7adbd;
-                    font-size: 11px;
-                    line-height: 1.35;
-                    text-align: center;
-                }
-
-                @media (max-width: 520px) {
-                    #judeu-panel {
-                        right: 12px;
-                        bottom: 78px;
-                    }
-
-                    #judeu-launcher {
-                        right: 12px;
-                        bottom: 12px;
-                    }
-                }
-            `;
+            .judeu-note {
+                color: #a8a8a8;
+                font-size: 11px;
+                line-height: 1.35;
+                text-align: center;
+            }
+        `;
 
         document.head.appendChild(style);
     }
@@ -249,26 +254,16 @@
             .trim();
     }
 
-    function getVisibleLessonText() {
+    function getVisibleText() {
         const main = document.querySelector("main") || document.querySelector("[role='main']") || document.body;
         return normalizeText(main.innerText || document.body.innerText || "");
     }
 
-    function getUsefulDomText() {
-        const selectors = [
-            "button",
-            "[role='button']",
-            "label",
-            "input",
-            "textarea",
-            "[aria-label]",
-            "[data-testid]",
-            "[class]"
-        ];
-
+    function getDomText() {
+        const selectors = ["button", "[role='button']", "label", "input", "textarea", "[aria-label]", "[data-testid]"];
         return selectors
             .flatMap(selector => [...document.querySelectorAll(selector)])
-            .slice(0, 220)
+            .slice(0, 180)
             .map(node => normalizeText([
                 node.innerText,
                 node.textContent,
@@ -279,33 +274,32 @@
             .join(" | ");
     }
 
-    function extractProblemText() {
-        const text = getVisibleLessonText();
-        const startWords = ["Qual", "Quanto", "Calcule", "Resolva", "Escolha", "Determine", "Encontre"];
-        const starts = startWords
+    function readScreen() {
+        const text = getVisibleText();
+        const starts = ["Qual", "Quanto", "Calcule", "Resolva", "Escolha", "Determine", "Encontre"]
             .map(word => text.indexOf(word))
             .filter(index => index >= 0);
-        const start = starts.length ? Math.min(...starts) : Math.max(0, text.length - 1800);
-        return text.slice(start, start + 2200).trim();
+        const start = starts.length ? Math.min(...starts) : Math.max(0, text.length - 1500);
+        return normalizeText(`${text.slice(start, start + 1800)}\nDOM: ${getDomText()}`);
     }
 
     function extractOptions(text) {
         const options = [];
-        const compact = text.replace(/\s+/g, " ");
-        const optionRegex = /\b([A-D])\s+(.{1,140}?)(?=\s+[A-D]\s+|$)/g;
+        const compact = normalizeText(text);
+        const optionRegex = /\b([A-D])\s+(.{1,160}?)(?=\s+[A-D]\s+|$)/g;
         let match;
 
         while ((match = optionRegex.exec(compact))) {
-            const label = match[1];
             const value = match[2].trim();
-            if (/[=+\-*/^]|m|x|T|\d/.test(value)) options.push({ label, value });
+            if (value.length > 1) options.push({ label: match[1], value });
         }
 
         return options.slice(0, 4);
     }
 
     function extractLinearPairs(text) {
-        const numbers = [...text.matchAll(/-?\d+(?:[.,]\d+)?/g)].map(match => Number(match[0].replace(",", ".")));
+        const beforeOptions = text.split(/\bA\s+/)[0] || text;
+        const numbers = [...beforeOptions.matchAll(/-?\d+(?:[.,]\d+)?/g)].map(match => Number(match[0].replace(",", ".")));
         const pairs = [];
 
         for (let i = 0; i < numbers.length - 1; i += 2) {
@@ -321,8 +315,7 @@
     function parseLinearExpression(expression) {
         const clean = expression.replace(/\s+/g, "").replace(/[−–—]/g, "-");
         const rightSide = clean.includes("=") ? clean.split("=").pop() : clean;
-        const match = rightSide.match(/^([+-]?\d*)[mx]([+-]\d+)?$/i);
-
+        const match = rightSide.match(/^([+-]?\d*)[a-z]([+-]\d+)?$/i);
         if (!match) return null;
 
         let slopeText = match[1];
@@ -335,196 +328,179 @@
         };
     }
 
-    function analyzeLinearQuestion(text) {
+    function analyzeLinear(text) {
         const options = extractOptions(text);
         const pairs = extractLinearPairs(text);
-
-        if (pairs.length < 2 || !options.length) return null;
+        if (pairs.length < 2 || options.length < 2) return null;
 
         const [x1, y1] = pairs[0];
         const [x2, y2] = pairs[1];
         const slope = (y2 - y1) / (x2 - x1);
-
         if (!Number.isFinite(slope)) return null;
 
         const intercept = y1 - slope * x1;
-        const matched = options.find(option => {
+        const match = options.find(option => {
             const parsed = parseLinearExpression(option.value);
-            if (!parsed) return false;
-            return Math.abs(parsed.slope - slope) < 0.0001 && Math.abs(parsed.intercept - intercept) < 0.0001;
+            return parsed && Math.abs(parsed.slope - slope) < 0.0001 && Math.abs(parsed.intercept - intercept) < 0.0001;
         });
 
-        const expression = `T = ${slope}m${intercept < 0 ? " - " + Math.abs(intercept) : intercept > 0 ? " + " + intercept : ""}`;
+        if (!match) return null;
 
         return {
-            answer: matched ? `R: ${matched.label}` : `R: ${expression}`,
-            explanation: `A variacao e ${y2 - y1}, entao a taxa e ${slope}. Substituindo (${x1}, ${y1}), sobra b = ${intercept}.`,
-            detail: matched ? `${matched.label}) ${matched.value}` : expression
-        };
-    }
-
-    function analyzeBasicArithmetic(text) {
-        const expression = text.match(/(-?\d+(?:[.,]\d+)?)\s*([+\-*/])\s*(-?\d+(?:[.,]\d+)?)/);
-        if (!expression) return null;
-
-        const a = Number(expression[1].replace(",", "."));
-        const op = expression[2];
-        const b = Number(expression[3].replace(",", "."));
-        let result;
-
-        if (op === "+") result = a + b;
-        if (op === "-") result = a - b;
-        if (op === "*") result = a * b;
-        if (op === "/") result = b === 0 ? null : a / b;
-        if (result === null || !Number.isFinite(result)) return null;
-
-        return {
-            answer: `R: ${result}`,
-            explanation: `Conta direta: ${a} ${op} ${b} = ${result}.`,
-            detail: String(result)
-        };
-    }
-
-    function fallbackAnalysis(text) {
-        const options = extractOptions(text);
-        const optionText = options.length
-            ? `\n${options.map(option => `${option.label}) ${option.value}`).join("\n")}`
-            : "";
-
-        return {
-            answer: "R: ?",
-            explanation: "Nao consegui ter certeza so pelo texto capturado. Cole o enunciado completo para melhorar.",
-            detail: optionText ? `Alternativas detectadas:${optionText}` : "Nenhuma alternativa clara detectada."
+            letter: match.label,
+            brief: `Varia ${slope} por unidade e o termo fixo e ${intercept}.`,
+            detail: `${match.label}) ${match.value}`
         };
     }
 
     function analyze(text) {
         const clean = normalizeText(text);
-        return analyzeLinearQuestion(clean) || analyzeBasicArithmetic(clean) || fallbackAnalysis(clean);
+        const linear = analyzeLinear(clean);
+        if (linear) return linear;
+
+        return {
+            letter: "?",
+            brief: "Nao consegui detectar com seguranca. Cole o enunciado completo ou use o modo normal para conferir.",
+            detail: "Sem alternativa A/B/C/D confiavel."
+        };
+    }
+
+    function ensureAccessRequest() {
+        const user = state.currentUser || makeUser();
+        state.currentUser = user;
+
+        if (!state.requests.some(request => request.id === user.id) &&
+            !state.approvedUsers.includes(user.id) &&
+            !state.blockedUsers.includes(user.id)) {
+            state.requests.push({
+                id: user.id,
+                name: user.name,
+                createdAt: new Date().toISOString(),
+                plan: "free"
+            });
+            saveState();
+        }
+    }
+
+    function accessStatus() {
+        const id = state.currentUser.id;
+        if (state.blockedUsers.includes(id)) return "blocked";
+        if (state.approvedUsers.includes(id)) return "approved";
+        return "pending";
     }
 
     function buildPanel() {
         if (document.getElementById("judeu-panel")) return;
+
+        ensureAccessRequest();
 
         const launcher = el("button", {
             attrs: { id: "judeu-launcher", type: "button", title: app.brand },
             text: "JS"
         });
 
-        const panel = el("aside", {
-            attrs: { id: "judeu-panel", "aria-label": `${app.brand} estudo` }
-        });
-
+        const panel = el("aside", { attrs: { id: "judeu-panel", "aria-label": `${app.brand} estudo` } });
         const header = el("div", { className: "judeu-header" });
         const logo = el("div", { className: "judeu-logo", text: "JS" });
         const titleBox = el("div");
-        titleBox.append(
-            el("h2", { text: app.brand }),
-            el("p", { text: `${app.poweredBy} - v${app.version}` })
-        );
-        const close = el("button", {
-            className: "judeu-close",
-            text: "x",
-            attrs: { type: "button", "aria-label": "Fechar" }
-        });
+        titleBox.append(el("h2", { text: app.brand }), el("p", { text: `${app.poweredBy} - v${app.version}` }));
+        const close = el("button", { className: "judeu-close", text: "x", attrs: { type: "button" } });
         header.append(logo, titleBox, close);
 
         const body = el("div", { className: "judeu-body" });
-        const tabs = el("div", { className: "judeu-tabs" });
-        const tabKhan = el("button", {
-            className: "judeu-tab is-active",
-            text: "Khan",
-            attrs: { id: "judeu-tab-khan", type: "button" }
-        });
-        const tabAi = el("button", {
-            className: "judeu-tab",
-            text: "Painel IA",
-            attrs: { id: "judeu-tab-ai", type: "button" }
-        });
-        tabs.append(tabKhan, tabAi);
+        const answer = el("div", { className: "judeu-answer" });
+        const answerTitle = el("strong", { text: "R: ?" });
+        const answerBrief = el("span", { text: "Pressione N ou clique em LER TELA." });
+        answer.append(answerTitle, answerBrief);
 
-        const pageKhan = el("div", {
-            className: "judeu-page is-active",
-            attrs: { id: "judeu-page-khan" }
-        });
-        const question = el("textarea", {
-            className: "judeu-textarea",
-            attrs: { id: "judeu-question", placeholder: "Clique em Ler tela ou cole o enunciado aqui." }
-        });
-        const actions = el("div", { className: "judeu-row" });
-        const captureButton = el("button", {
-            className: "judeu-button",
-            text: "Ler tela",
-            attrs: { id: "judeu-capture", type: "button" }
-        });
-        const analyzeButton = el("button", {
-            className: "judeu-button secondary",
-            text: "Enviar para IA",
-            attrs: { id: "judeu-analyze", type: "button" }
-        });
-        actions.append(captureButton, analyzeButton);
-        pageKhan.append(question, actions);
+        const modeRow = el("div", { className: "judeu-row" });
+        const normalMode = el("button", { className: "judeu-mode is-active", text: "Normal", attrs: { type: "button" } });
+        const flashMode = el("button", { className: "judeu-mode", text: "Flash", attrs: { type: "button" } });
+        modeRow.append(normalMode, flashMode);
 
-        const pageAi = el("div", {
-            className: "judeu-page",
-            attrs: { id: "judeu-page-ai" }
-        });
-        const answer = el("div", {
-            className: "judeu-answer",
-            attrs: { id: "judeu-answer" }
-        });
-        const answerStrong = el("strong", { text: "R: ?" });
-        const answerText = el("span", { text: "A resposta aparece aqui." });
-        answer.append(answerStrong, answerText);
-        const result = el("div", {
-            className: "judeu-result",
-            text: "Aguardando leitura da tela.",
-            attrs: { id: "judeu-result" }
-        });
-        pageAi.append(answer, result);
+        const actionRow = el("div", { className: "judeu-row" });
+        const readButton = el("button", { className: "judeu-button", text: "LER TELA", attrs: { type: "button" } });
+        const adminButton = el("button", { className: "judeu-button secondary", text: "ADM", attrs: { type: "button" } });
+        actionRow.append(readButton, adminButton);
 
-        const copyRow = el("div", { className: "judeu-row" });
-        const copyButton = el("button", {
-            className: "judeu-button secondary",
-            text: "Copiar resposta",
-            attrs: { id: "judeu-copy", type: "button" }
-        });
-        copyRow.append(copyButton);
+        const screen = el("div", { className: "judeu-screen", text: "Leitura aparece aqui em modo Normal." });
+        const status = el("div", { className: "judeu-note", text: accessMessage() });
 
-        const note = el("div", {
-            className: "judeu-note",
-            text: "Le a tela e o DOM visivel, resume curto e mostra a resposta sugerida. Nao clica nem preenche sozinho."
-        });
+        const admin = el("div", { className: "judeu-admin" });
+        const adminTitle = el("div", { className: "judeu-screen", text: "ADM local/demo. Para aprovar usuarios reais em outros PCs, precisa ligar uma API/backend." });
+        const requestList = el("div");
+        const paidPlan = el("div", { className: "judeu-screen", text: "Plano pago: espaco reservado para integrar login, pagamentos e limites depois." });
+        admin.append(adminTitle, requestList, paidPlan);
 
-        body.append(tabs, pageKhan, pageAi, copyRow, note);
+        body.append(answer, modeRow, actionRow, screen, status, admin);
         panel.append(header, body);
-
         document.body.append(launcher, panel);
 
-        launcher.addEventListener("click", () => panel.classList.toggle("is-open"));
-        close.addEventListener("click", () => panel.classList.remove("is-open"));
-
-        function setPage(page) {
-            const ai = page === "ai";
-            tabKhan.classList.toggle("is-active", !ai);
-            tabAi.classList.toggle("is-active", ai);
-            pageKhan.classList.toggle("is-active", !ai);
-            pageAi.classList.toggle("is-active", ai);
+        function accessMessage() {
+            const statusNow = accessStatus();
+            if (statusNow === "approved") return "Acesso aprovado neste navegador.";
+            if (statusNow === "blocked") return "Acesso bloqueado neste navegador.";
+            return "Solicitacao enviada. Aguardando aprovacao do administrador.";
         }
 
-        function setAnalysis(analysis) {
-            answer.replaceChildren(
-                el("strong", { text: analysis.answer }),
-                el("span", { text: analysis.explanation })
-            );
-            result.textContent = analysis.detail;
-            setPage("ai");
+        function setMode(mode) {
+            state.mode = mode;
+            saveState();
+            normalMode.classList.toggle("is-active", mode === "normal");
+            flashMode.classList.toggle("is-active", mode === "flash");
         }
 
-        function readScreen() {
-            const visible = extractProblemText();
-            const dom = getUsefulDomText();
-            return normalizeText(`${visible}\n\nCODIGOS/DOM VISIVEIS:\n${dom}`);
+        function runRead() {
+            if (accessStatus() === "blocked") {
+                answerTitle.textContent = "R: X";
+                answerBrief.textContent = "Usuario bloqueado.";
+                return;
+            }
+
+            const text = readScreen();
+            const result = analyze(text);
+            answerTitle.textContent = `R: ${result.letter}`;
+            answerBrief.textContent = state.mode === "flash" ? "Resposta rapida." : result.brief;
+            screen.textContent = state.mode === "flash" ? result.detail : `${result.brief}\n\n${result.detail}`;
+        }
+
+        function renderRequests() {
+            requestList.replaceChildren();
+
+            if (!state.requests.length) {
+                requestList.append(el("div", { className: "judeu-user", text: "Nenhuma solicitacao pendente." }));
+                return;
+            }
+
+            state.requests.forEach(request => {
+                const item = el("div", { className: "judeu-user" });
+                const label = el("div", { text: `${request.name} - ${request.id} - plano ${request.plan}` });
+                const row = el("div", { className: "judeu-row" });
+                const approve = el("button", { className: "judeu-button", text: "Aprovar", attrs: { type: "button" } });
+                const block = el("button", { className: "judeu-button secondary", text: "Bloquear", attrs: { type: "button" } });
+
+                approve.addEventListener("click", () => {
+                    state.approvedUsers = [...new Set([...state.approvedUsers, request.id])];
+                    state.blockedUsers = state.blockedUsers.filter(id => id !== request.id);
+                    state.requests = state.requests.filter(item => item.id !== request.id);
+                    saveState();
+                    status.textContent = accessMessage();
+                    renderRequests();
+                });
+
+                block.addEventListener("click", () => {
+                    state.blockedUsers = [...new Set([...state.blockedUsers, request.id])];
+                    state.approvedUsers = state.approvedUsers.filter(id => id !== request.id);
+                    state.requests = state.requests.filter(item => item.id !== request.id);
+                    saveState();
+                    status.textContent = accessMessage();
+                    renderRequests();
+                });
+
+                row.append(approve, block);
+                item.append(label, row);
+                requestList.append(item);
+            });
         }
 
         function makeDraggable() {
@@ -534,7 +510,7 @@
             let startLeft = 0;
             let startTop = 0;
 
-            header.addEventListener("pointerdown", (event) => {
+            header.addEventListener("pointerdown", event => {
                 if (event.target.closest("button")) return;
                 dragging = true;
                 const rect = panel.getBoundingClientRect();
@@ -549,7 +525,7 @@
                 header.setPointerCapture(event.pointerId);
             });
 
-            header.addEventListener("pointermove", (event) => {
+            header.addEventListener("pointermove", event => {
                 if (!dragging) return;
                 const left = Math.max(8, Math.min(window.innerWidth - panel.offsetWidth - 8, startLeft + event.clientX - startX));
                 const top = Math.max(8, Math.min(window.innerHeight - panel.offsetHeight - 8, startTop + event.clientY - startY));
@@ -562,25 +538,30 @@
             });
         }
 
-        tabKhan.addEventListener("click", () => setPage("khan"));
-        tabAi.addEventListener("click", () => setPage("ai"));
-
-        captureButton.addEventListener("click", () => {
-            question.value = readScreen();
+        launcher.addEventListener("click", () => panel.classList.toggle("is-open"));
+        close.addEventListener("click", () => panel.classList.remove("is-open"));
+        normalMode.addEventListener("click", () => setMode("normal"));
+        flashMode.addEventListener("click", () => setMode("flash"));
+        readButton.addEventListener("click", runRead);
+        adminButton.addEventListener("click", () => {
+            admin.classList.toggle("is-open");
+            renderRequests();
         });
 
-        analyzeButton.addEventListener("click", () => {
-            const text = question.value.trim() || readScreen();
-            question.value = text;
-            setAnalysis(analyze(text));
+        document.addEventListener("keydown", event => {
+            if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+            if (event.key.toLowerCase() === "n") {
+                panel.classList.add("is-open");
+                runRead();
+            }
+            if (event.key.toLowerCase() === "m") {
+                panel.classList.add("is-open");
+                admin.classList.toggle("is-open");
+                renderRequests();
+            }
         });
 
-        copyButton.addEventListener("click", async () => {
-            const text = answer.innerText || "";
-            if (!text.trim()) return;
-            await navigator.clipboard?.writeText(text);
-        });
-
+        setMode(state.mode || "normal");
         makeDraggable();
     }
 
