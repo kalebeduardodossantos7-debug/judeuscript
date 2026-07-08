@@ -303,6 +303,23 @@
                     cursor: pointer;
                 }
 
+                .judeu-module-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 8px;
+                }
+
+                .judeu-module-status {
+                    min-height: 38px;
+                    margin-top: 10px;
+                    padding: 10px;
+                    border-radius: 10px;
+                    background: rgba(255, 255, 255, 0.05);
+                    color: var(--js-muted);
+                    font-size: 12px;
+                    line-height: 1.35;
+                }
+
                 .judeu-timer {
                     font-size: 38px;
                     font-weight: 900;
@@ -485,6 +502,20 @@
                     </section>
 
                     <section class="judeu-section">
+                        <h3>Modulos do jogo</h3>
+                        <div class="judeu-module-grid">
+                            <button class="judeu-button secondary" id="judeu-answer-revealer" type="button">answerRevealer</button>
+                            <button class="judeu-button secondary" id="judeu-auto-answer" type="button">autoAnswer</button>
+                            <button class="judeu-button secondary" id="judeu-question-spoof" type="button">questionSpoof</button>
+                            <button class="judeu-button secondary" id="judeu-video-spoof" type="button">videoSpoof</button>
+                            <button class="judeu-button secondary" id="judeu-minute-farm" type="button">minuteFarm</button>
+                        </div>
+                        <div class="judeu-module-status" id="judeu-module-status">
+                            Pronto. Estes modulos funcionam nos elementos do seu jogo marcados com data-judeu-*.
+                        </div>
+                    </section>
+
+                    <section class="judeu-section">
                         <h3>Anotações</h3>
                         <textarea class="judeu-textarea" id="judeu-notes" placeholder="Escreva suas anotações aqui...">${state.notes || ""}</textarea>
                     </section>
@@ -517,6 +548,12 @@
         const timer = panel.querySelector("#judeu-timer");
         const start = panel.querySelector("#judeu-start");
         const reset = panel.querySelector("#judeu-reset");
+        const moduleStatus = panel.querySelector("#judeu-module-status");
+        const answerRevealerButton = panel.querySelector("#judeu-answer-revealer");
+        const autoAnswerButton = panel.querySelector("#judeu-auto-answer");
+        const questionSpoofButton = panel.querySelector("#judeu-question-spoof");
+        const videoSpoofButton = panel.querySelector("#judeu-video-spoof");
+        const minuteFarmButton = panel.querySelector("#judeu-minute-farm");
 
         const togglePanel = () => panel.classList.toggle("is-open");
         launcher.addEventListener("click", togglePanel);
@@ -550,10 +587,117 @@
             saveState({ timerSeconds });
         }
 
+        function setModuleStatus(message) {
+            moduleStatus.textContent = message;
+            showToast(message);
+        }
+
+        function answerRevealer() {
+            const answerElements = document.querySelectorAll("[data-judeu-answer]");
+
+            if (!answerElements.length) {
+                setModuleStatus("answerRevealer: nenhum elemento com data-judeu-answer foi encontrado.");
+                return;
+            }
+
+            answerElements.forEach((element) => {
+                const answer = element.getAttribute("data-judeu-answer") || "";
+                element.setAttribute("data-judeu-revealed", "true");
+                element.textContent = answer;
+            });
+
+            setModuleStatus(`answerRevealer: ${answerElements.length} resposta(s) exibida(s) no jogo.`);
+        }
+
+        function autoAnswer() {
+            const fields = document.querySelectorAll("input[data-judeu-answer], textarea[data-judeu-answer]");
+
+            if (!fields.length) {
+                setModuleStatus("autoAnswer: nenhum input/textarea com data-judeu-answer foi encontrado.");
+                return;
+            }
+
+            fields.forEach((field) => {
+                field.value = field.getAttribute("data-judeu-answer") || "";
+                field.dispatchEvent(new Event("input", { bubbles: true }));
+                field.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+
+            setModuleStatus(`autoAnswer: ${fields.length} campo(s) preenchido(s) no seu jogo.`);
+        }
+
+        function questionSpoof() {
+            const counters = document.querySelectorAll("[data-judeu-question-count]");
+
+            if (!counters.length) {
+                setModuleStatus("questionSpoof: nenhum contador com data-judeu-question-count foi encontrado.");
+                return;
+            }
+
+            counters.forEach((counter) => {
+                const current = Number(counter.getAttribute("data-judeu-question-count")) || 0;
+                const next = current + 1;
+                counter.setAttribute("data-judeu-question-count", String(next));
+                counter.textContent = String(next);
+            });
+
+            setModuleStatus(`questionSpoof: ${counters.length} contador(es) atualizado(s).`);
+        }
+
+        function videoSpoof() {
+            const videos = document.querySelectorAll("video[data-judeu-video], [data-judeu-video-progress]");
+
+            if (!videos.length) {
+                setModuleStatus("videoSpoof: nenhum video/progresso com data-judeu-video foi encontrado.");
+                return;
+            }
+
+            videos.forEach((element) => {
+                if (element instanceof HTMLVideoElement && Number.isFinite(element.duration)) {
+                    element.currentTime = Math.max(0, element.duration - 0.2);
+                    element.dispatchEvent(new Event("timeupdate", { bubbles: true }));
+                    element.dispatchEvent(new Event("ended", { bubbles: true }));
+                    return;
+                }
+
+                element.setAttribute("data-judeu-video-progress", "100");
+                element.textContent = "100%";
+            });
+
+            setModuleStatus(`videoSpoof: ${videos.length} item(ns) de video completo(s).`);
+        }
+
+        function minuteFarm() {
+            const minuteElements = document.querySelectorAll("[data-judeu-minutes]");
+            const gainedMinutes = 5;
+
+            if (!minuteElements.length) {
+                const total = Number(state.demoMinutes || 0) + gainedMinutes;
+                saveState({ demoMinutes: total });
+                setModuleStatus(`minuteFarm: ${gainedMinutes} minutos adicionados ao contador local. Total: ${total}.`);
+                return;
+            }
+
+            minuteElements.forEach((element) => {
+                const current = Number(element.getAttribute("data-judeu-minutes")) || 0;
+                const next = current + gainedMinutes;
+                element.setAttribute("data-judeu-minutes", String(next));
+                element.textContent = String(next);
+            });
+
+            setModuleStatus(`minuteFarm: ${gainedMinutes} minutos adicionados em ${minuteElements.length} contador(es).`);
+        }
+
         addTask.addEventListener("click", addTaskFromInput);
         taskInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter") addTaskFromInput();
         });
+
+        answerRevealerButton.addEventListener("click", answerRevealer);
+        autoAnswerButton.addEventListener("click", autoAnswer);
+        questionSpoofButton.addEventListener("click", questionSpoof);
+        videoSpoofButton.addEventListener("click", videoSpoof);
+        minuteFarmButton.addEventListener("click", minuteFarm);
 
         save.addEventListener("click", () => {
             persistForm();
