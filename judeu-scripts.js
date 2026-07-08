@@ -11,7 +11,6 @@
         const node = document.createElement(tag);
         if (options.className) node.className = options.className;
         if (options.text) node.textContent = options.text;
-        if (options.html) node.innerHTML = options.html;
         if (options.attrs) {
             Object.entries(options.attrs).forEach(([key, value]) => node.setAttribute(key, value));
         }
@@ -21,9 +20,11 @@
     function injectStyles() {
         if (document.getElementById("judeu-study-styles")) return;
 
-        document.head.appendChild(el("style", {
-            attrs: { id: "judeu-study-styles" },
-            html: `
+        const style = el("style", {
+            attrs: { id: "judeu-study-styles" }
+        });
+
+        style.textContent = `
                 #judeu-launcher,
                 #judeu-panel,
                 #judeu-panel * {
@@ -235,8 +236,9 @@
                         bottom: 12px;
                     }
                 }
-            `
-        }));
+            `;
+
+        document.head.appendChild(style);
     }
 
     function normalizeText(text) {
@@ -410,54 +412,94 @@
         });
 
         const panel = el("aside", {
-            attrs: { id: "judeu-panel", "aria-label": `${app.brand} estudo` },
-            html: `
-                <div class="judeu-header">
-                    <div class="judeu-logo">JS</div>
-                    <div>
-                        <h2>${app.brand}</h2>
-                        <p>${app.poweredBy} - v${app.version}</p>
-                    </div>
-                    <button class="judeu-close" type="button" aria-label="Fechar">x</button>
-                </div>
-                <div class="judeu-body">
-                    <div class="judeu-tabs">
-                        <button class="judeu-tab is-active" id="judeu-tab-khan" type="button">Khan</button>
-                        <button class="judeu-tab" id="judeu-tab-ai" type="button">Painel IA</button>
-                    </div>
-
-                    <div class="judeu-page is-active" id="judeu-page-khan">
-                        <textarea class="judeu-textarea" id="judeu-question" placeholder="Clique em Ler tela ou cole o enunciado aqui."></textarea>
-                        <div class="judeu-row">
-                            <button class="judeu-button" id="judeu-capture" type="button">Ler tela</button>
-                            <button class="judeu-button secondary" id="judeu-analyze" type="button">Enviar para IA</button>
-                        </div>
-                    </div>
-
-                    <div class="judeu-page" id="judeu-page-ai">
-                        <div class="judeu-answer" id="judeu-answer"><strong>R: ?</strong>A resposta aparece aqui.</div>
-                        <div class="judeu-result" id="judeu-result">Aguardando leitura da tela.</div>
-                    </div>
-
-                    <div class="judeu-row">
-                        <button class="judeu-button secondary" id="judeu-copy" type="button">Copiar resposta</button>
-                    </div>
-                    <div class="judeu-note">Le a tela e o DOM visivel, resume curto e mostra a resposta sugerida. Nao clica nem preenche sozinho.</div>
-                </div>
-            `
+            attrs: { id: "judeu-panel", "aria-label": `${app.brand} estudo` }
         });
 
-        document.body.append(launcher, panel);
+        const header = el("div", { className: "judeu-header" });
+        const logo = el("div", { className: "judeu-logo", text: "JS" });
+        const titleBox = el("div");
+        titleBox.append(
+            el("h2", { text: app.brand }),
+            el("p", { text: `${app.poweredBy} - v${app.version}` })
+        );
+        const close = el("button", {
+            className: "judeu-close",
+            text: "x",
+            attrs: { type: "button", "aria-label": "Fechar" }
+        });
+        header.append(logo, titleBox, close);
 
-        const question = panel.querySelector("#judeu-question");
-        const result = panel.querySelector("#judeu-result");
-        const answer = panel.querySelector("#judeu-answer");
-        const close = panel.querySelector(".judeu-close");
-        const header = panel.querySelector(".judeu-header");
-        const tabKhan = panel.querySelector("#judeu-tab-khan");
-        const tabAi = panel.querySelector("#judeu-tab-ai");
-        const pageKhan = panel.querySelector("#judeu-page-khan");
-        const pageAi = panel.querySelector("#judeu-page-ai");
+        const body = el("div", { className: "judeu-body" });
+        const tabs = el("div", { className: "judeu-tabs" });
+        const tabKhan = el("button", {
+            className: "judeu-tab is-active",
+            text: "Khan",
+            attrs: { id: "judeu-tab-khan", type: "button" }
+        });
+        const tabAi = el("button", {
+            className: "judeu-tab",
+            text: "Painel IA",
+            attrs: { id: "judeu-tab-ai", type: "button" }
+        });
+        tabs.append(tabKhan, tabAi);
+
+        const pageKhan = el("div", {
+            className: "judeu-page is-active",
+            attrs: { id: "judeu-page-khan" }
+        });
+        const question = el("textarea", {
+            className: "judeu-textarea",
+            attrs: { id: "judeu-question", placeholder: "Clique em Ler tela ou cole o enunciado aqui." }
+        });
+        const actions = el("div", { className: "judeu-row" });
+        const captureButton = el("button", {
+            className: "judeu-button",
+            text: "Ler tela",
+            attrs: { id: "judeu-capture", type: "button" }
+        });
+        const analyzeButton = el("button", {
+            className: "judeu-button secondary",
+            text: "Enviar para IA",
+            attrs: { id: "judeu-analyze", type: "button" }
+        });
+        actions.append(captureButton, analyzeButton);
+        pageKhan.append(question, actions);
+
+        const pageAi = el("div", {
+            className: "judeu-page",
+            attrs: { id: "judeu-page-ai" }
+        });
+        const answer = el("div", {
+            className: "judeu-answer",
+            attrs: { id: "judeu-answer" }
+        });
+        const answerStrong = el("strong", { text: "R: ?" });
+        const answerText = el("span", { text: "A resposta aparece aqui." });
+        answer.append(answerStrong, answerText);
+        const result = el("div", {
+            className: "judeu-result",
+            text: "Aguardando leitura da tela.",
+            attrs: { id: "judeu-result" }
+        });
+        pageAi.append(answer, result);
+
+        const copyRow = el("div", { className: "judeu-row" });
+        const copyButton = el("button", {
+            className: "judeu-button secondary",
+            text: "Copiar resposta",
+            attrs: { id: "judeu-copy", type: "button" }
+        });
+        copyRow.append(copyButton);
+
+        const note = el("div", {
+            className: "judeu-note",
+            text: "Le a tela e o DOM visivel, resume curto e mostra a resposta sugerida. Nao clica nem preenche sozinho."
+        });
+
+        body.append(tabs, pageKhan, pageAi, copyRow, note);
+        panel.append(header, body);
+
+        document.body.append(launcher, panel);
 
         launcher.addEventListener("click", () => panel.classList.toggle("is-open"));
         close.addEventListener("click", () => panel.classList.remove("is-open"));
@@ -471,7 +513,10 @@
         }
 
         function setAnalysis(analysis) {
-            answer.innerHTML = `<strong>${analysis.answer}</strong>${analysis.explanation}`;
+            answer.replaceChildren(
+                el("strong", { text: analysis.answer }),
+                el("span", { text: analysis.explanation })
+            );
             result.textContent = analysis.detail;
             setPage("ai");
         }
@@ -520,17 +565,17 @@
         tabKhan.addEventListener("click", () => setPage("khan"));
         tabAi.addEventListener("click", () => setPage("ai"));
 
-        panel.querySelector("#judeu-capture").addEventListener("click", () => {
+        captureButton.addEventListener("click", () => {
             question.value = readScreen();
         });
 
-        panel.querySelector("#judeu-analyze").addEventListener("click", () => {
+        analyzeButton.addEventListener("click", () => {
             const text = question.value.trim() || readScreen();
             question.value = text;
             setAnalysis(analyze(text));
         });
 
-        panel.querySelector("#judeu-copy").addEventListener("click", async () => {
+        copyButton.addEventListener("click", async () => {
             const text = answer.innerText || "";
             if (!text.trim()) return;
             await navigator.clipboard?.writeText(text);
